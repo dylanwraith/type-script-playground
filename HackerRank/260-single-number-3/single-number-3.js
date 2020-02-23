@@ -12,7 +12,6 @@ function singleNumber(nums) {
     singlesOnly.forEach(function (value) {
         returnValues.push(value);
     });
-    // for (const value of iterableSingles) returnValues.push(value);
     return returnValues;
 }
 console.log(singleNumber([1, 2, 1, 2, 3, 3, 4, 5, 6, 6, 7, 7, 8, 4]));
