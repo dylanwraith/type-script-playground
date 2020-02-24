@@ -7,3 +7,5 @@ Files are run using command 'node file-name.js'. (JavaScript file)
   
 **NOTE**  
 Complie .ts files but run .js files. Files are compiled down to javascript, and must be run as javascript.
+
+![This is the TypeScriptLogo](https://www.edureka.co/blog/wp-content/uploads/2019/11/typescript-logo-528x194.png)
