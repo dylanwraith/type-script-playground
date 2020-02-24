@@ -1,5 +1,4 @@
-// Make a method that receives a graph, source, and destination, then outputs the path needed for the shortest trip along with the total cost
-
+// // Make a method that receives a graph, source, and destination, then outputs the path needed for the shortest trip along with the total cost
 class Graph {
     start: string = ''
     end: string = '';
@@ -40,7 +39,7 @@ const sampleGraph: Graph[] = [
     {
         start: 'B',
         end: 'A',
-        cost: 1
+        cost: 3
     },
     {
         start: 'A',
@@ -122,83 +121,100 @@ const sampleShortestPath: ShortestPath = {
 
 // Beginning of solution
 
-class DestinationCost {
-    destiantion: string;
-    cost: number;
-}
-
-class SourceCost {
+class TripData {
     source: string;
     cost: number;
 }
 
+class Coordinate {
+    destination: string;
+    cost: number;
+}
+
 function findShortestPath(graph: Graph[], source: string, destination: string): ShortestPath {
-    let destinationCosts = new Map<string, DestinationCost[]>();
-    let shortestPathMap = new Map<string, SourceCost>();
+    // destinationCosts[Destination] => (Cost)
+    let shortestPaths = new Map<string, number>();
+    // tripData[Destination] => (Source, Cost)
+    let tripData = new Map<string, TripData>();
+    // set of all checked sources
     let checkedSources = new Set<string>();
-    // Initialize maps and set for algorithm
-    const startingPoint: SourceCost = {
+    // coordinates[Source] = ([Destination, Cost])
+    let coordinates = new Map<string, Coordinate[]>();
+    // set initial values of maps
+    shortestPaths.set(source, 0);
+    const initialTripData = {
         source: source,
         cost: 0
     };
-    shortestPathMap.set(source, startingPoint);
+    tripData.set(source, initialTripData);
+    // read data from graph into map
     for (const coordinate of graph) {
-        const destinationCost: DestinationCost = {
-            destiantion: coordinate.end,
+        // create new coordinate
+        const newCoordinate: Coordinate = {
+            destination: coordinate.end,
             cost: coordinate.cost
         };
-        if (shortestPathMap.has(coordinate.start)) {
-            const destinationCostList: DestinationCost[] = destinationCosts.get(coordinate.start);
-            destinationCostList.push(destinationCost);
-            destinationCosts.set(coordinate.start, destinationCostList);
+        // if source has not been seen, add to destination costs map and add coordinate to new list in map
+        if (!checkedSources.has(coordinate.start)) {
+            if (coordinate.start !== source)
+                shortestPaths.set(coordinate.start, null);
+            coordinates.set(coordinate.start, [newCoordinate]);
+            checkedSources.add(coordinate.start);
         }
+        // else add coordinate to existing list in coordinate map
         else {
-            const destinationCostList: DestinationCost[] = [destinationCost];
-            destinationCosts.set(coordinate.start, destinationCostList);
-            shortestPathMap.set(coordinate.start, null);
+            const existingCoordinates = coordinates.get(coordinate.start);
+            existingCoordinates.push(newCoordinate);
+            coordinates.set(coordinate.start, existingCoordinates);
         }
     }
-    // Perform dijkstra's algorithm to find shortest path
-    return dijkstra(destinationCosts, shortestPathMap, source, destination, source, checkedSources);
+    return dijkstra(coordinates, source, destination, source, checkedSources, shortestPaths, tripData);
 }
 
-function dijkstra(destinationCosts: Map<string, DestinationCost[]>, shortestPathMap: Map<string, SourceCost>, source: string, destination: string, current: string, checkedSources: Set<string>): ShortestPath {
-    const currentCost: number = shortestPathMap.get(current).cost;
-    // Check all outsources of current node, updating map for new shortest paths accordingly
-    for (const sourceDest of destinationCosts.get(current)) {
-        const currentShortestPath = shortestPathMap.get(sourceDest.destiantion).cost;
-        const newShortestPath = currentCost + sourceDest.cost;
-        if (newShortestPath < currentShortestPath || currentShortestPath === null) {
-            const sourceCost: SourceCost = {
-                source: current,
-                cost: newShortestPath
-            };
-            shortestPathMap.set(sourceDest.destiantion, sourceCost);
+function dijkstra(coordinates: Map<string, Coordinate[]>, source: string, destination: string, currentSource: string, checkedSources: Set<string>,
+    shortestPaths: Map<string, number>, tripData: Map<string, TripData>): ShortestPath {
+        if (currentSource === destination) {
+            let current = destination;
+            let dijkstraPath: ShortestPath = new ShortestPath();
+            dijkstraPath.cost = shortestPaths.get(destination);
+            dijkstraPath.shortestPath = [];
+            while (current !== source) {
+                let graph: Graph = new Graph();
+                graph.end = current;
+                graph.start = tripData.get(current).source;
+                graph.cost = tripData.get(current).cost - tripData.get(graph.start).cost;
+                dijkstraPath.shortestPath.push(graph);
+                current = tripData.get(current).source;
+            }
+            dijkstraPath.shortestPath.reverse();
+            return dijkstraPath;
         }
-    }
-    // Set source as checked
-    checkedSources.add(current);
-    // If all sources have been checked, return shortest path
-    if (checkedSources.values === shortestPathMap.keys) {
-        console.log('finished');
-    }
-    // Otherwise check the source with the smallest associated cost
-    else {
-        const lowestCost = null;
-        let nextSource = null;
-        // O(n) time complexity, might be possible to improve using min-heap
-        for (const key in shortestPathMap) {
-            if (!checkedSources.has(key)) {
-                const keyCost = shortestPathMap.get(key);
-                if (keyCost !== null) {
-                    if (lowestCost == null || keyCost < lowestCost) {
-                        nextSource = key;
-                    }
-                }
+        // check all coordinates leaving current source, looking for new shortest paths
+        for (const coordinate of coordinates.get(currentSource)) {
+            const currentShortestPath = shortestPaths.get(coordinate.destination);
+            const newShortestPath = shortestPaths.get(currentSource) + coordinate.cost;
+            if (currentShortestPath === null || newShortestPath < currentShortestPath) {
+                const tripDataEntry: TripData = {
+                    source: currentSource,
+                    cost: newShortestPath
+                };
+                shortestPaths.set(coordinate.destination, newShortestPath);
+                tripData.set(coordinate.destination, tripDataEntry);
             }
         }
-        return dijkstra(destinationCosts, shortestPathMap, source, destination, nextSource, checkedSources);
-    }
+        // console.log('trip data = ');
+        // console.log(tripData);
+        checkedSources.delete(currentSource);
+        let min = null;
+        let nextSource = null;
+        checkedSources.forEach(newSource => {
+            const sourceMin = shortestPaths.get(newSource);
+            if ((min == null || min > sourceMin) && sourceMin !== null) {
+                min = sourceMin;
+                nextSource = newSource;
+            }
+        })
+        return dijkstra(coordinates, source, destination, nextSource, checkedSources, shortestPaths, tripData);
 }
 
-findShortestPath(sampleGraph, 'C', 'F');
+console.log(findShortestPath(sampleGraph, 'C', 'F'));
